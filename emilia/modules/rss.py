@@ -3,20 +3,19 @@ import re
 
 from feedparser import parse
 from telegram import ParseMode, constants, error
-from telegram.ext import CommandHandler
+from telegram.ext import CommandHandler, Filters
 
-from emilia import dispatcher, updater, spamfilters
+from emilia import dispatcher, updater, spamcheck
 from emilia.modules.helper_funcs.chat_status import user_admin
 from emilia.modules.sql import rss_sql as sql
 
 from emilia.modules.languages import tl
 from emilia.modules.helper_funcs.alternate import send_message
 
-def show_url(bot, update, args):
+@spamcheck
+def show_url(update, context):
+    args = context.args
     tg_chat_id = str(update.effective_chat.id)
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
 
     if len(args) >= 1:
         tg_feed_link = args[0]
@@ -47,19 +46,17 @@ def show_url(bot, update, args):
                                                                      html.escape(entry_link))
                 final_message = feed_message + entry_message
 
-                bot.send_message(chat_id=tg_chat_id, text=final_message, parse_mode=ParseMode.HTML)
+                context.bot.send_message(chat_id=tg_chat_id, text=final_message, parse_mode=ParseMode.HTML)
             else:
-                bot.send_message(chat_id=tg_chat_id, text=feed_message, parse_mode=ParseMode.HTML)
+                context.bot.send_message(chat_id=tg_chat_id, text=feed_message, parse_mode=ParseMode.HTML)
         else:
             send_message(update.effective_message, tl(update.effective_message, "Tautan ini bukan tautan Umpan RSS"))
     else:
         send_message(update.effective_message, tl(update.effective_message, "URL hilang"))
 
 
-def list_urls(bot, update):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+@spamcheck
+def list_urls(update, context):
     tg_chat_id = str(update.effective_chat.id)
 
     user_data = sql.get_urls(tg_chat_id)
@@ -73,23 +70,27 @@ def list_urls(bot, update):
     if len(final_content) == 0:
         bot.send_message(chat_id=tg_chat_id, text=tl(update.effective_message, "Obrolan ini tidak berlangganan ke tautan apa pun"))
     elif len(final_content) <= constants.MAX_MESSAGE_LENGTH:
-        bot.send_message(chat_id=tg_chat_id, text=tl(update.effective_message, "Obrolan ini dilanggan ke tautan berikut:\n") + final_content)
+        context.bot.send_message(chat_id=tg_chat_id, text=tl(update.effective_message, "Obrolan ini dilanggan ke tautan berikut:\n") + final_content)
     else:
-        bot.send_message(chat_id=tg_chat_id, parse_mode=ParseMode.HTML,
+        context.bot.send_message(chat_id=tg_chat_id, parse_mode=ParseMode.HTML,
                          text=tl(update.effective_message, "<b>Peringatan:</b> Pesan terlalu panjang untuk dikirim"))
 
 
+@spamcheck
 @user_admin
-def add_url(bot, update, args):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+def add_url(update, context):
+    args = context.args
     if len(args) >= 1:
         chat = update.effective_chat
 
         tg_chat_id = str(update.effective_chat.id)
 
         tg_feed_link = args[0]
+
+        is_pinned = False
+        if len(args) >= 2:
+            if args[1] == "pin":
+                is_pinned = True
 
         link_processed = parse(tg_feed_link)
 
@@ -107,7 +108,7 @@ def add_url(bot, update, args):
             if row:
                 send_message(update.effective_message, tl(update.effective_message, "URL ini sudah ditambahkan"))
             else:
-                sql.add_url(tg_chat_id, tg_feed_link, tg_old_entry_link)
+                sql.add_url(tg_chat_id, tg_feed_link, tg_old_entry_link, is_pinned)
 
                 send_message(update.effective_message, tl(update.effective_message, "URL ditambahkan ke langganan"))
         else:
@@ -116,11 +117,10 @@ def add_url(bot, update, args):
         send_message(update.effective_message, tl(update.effective_message, "URL hilang"))
 
 
+@spamcheck
 @user_admin
-def remove_url(bot, update, args):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+def remove_url(bot, update):
+    args = context.args
     if len(args) >= 1:
         tg_chat_id = str(update.effective_chat.id)
 
@@ -143,13 +143,15 @@ def remove_url(bot, update, args):
         send_message(update.effective_message, tl(update.effective_message, "URL hilang"))
 
 
-def rss_update(bot, job):
+def rss_update(context):
+    job = context.job
     user_data = sql.get_all()
 
     # this loop checks for every row in the DB
     for row in user_data:
         row_id = row.id
         tg_chat_id = row.chat_id
+        tg_is_pinned = row.is_pinned
         tg_feed_link = row.feed_link
 
         feed_processed = parse(tg_feed_link)
@@ -181,13 +183,18 @@ def rss_update(bot, job):
 
                 if len(final_message) <= constants.MAX_MESSAGE_LENGTH:
                     try:
-                        bot.send_message(chat_id=tg_chat_id, text=final_message, parse_mode=ParseMode.HTML)
+                        rssmsg = context.bot.send_message(chat_id=tg_chat_id, text=final_message, parse_mode=ParseMode.HTML)
+                        if tg_is_pinned:
+                            try:
+                                context.bot.pinChatMessage(tg_chat_id, rssmsg.message_id)
+                            except:
+                                pass
                     except error.Unauthorized:
                         print("Cannot send msg bcz bot is kicked")
                         sql.remove_url(tg_chat_id, tg_feed_link)
                 else:
                     try:
-                        bot.send_message(chat_id=tg_chat_id, text=tl(tg_chat_id, "<b>Peringatan:</b> Pesan terlalu panjang untuk dikirim"),
+                        context.bot.send_message(chat_id=tg_chat_id, text=tl(tg_chat_id, "<b>Peringatan:</b> Pesan terlalu panjang untuk dikirim"),
                                      parse_mode=ParseMode.HTML)
                     except error.Unauthorized:
                         print("Cannot send msg bcz bot is kicked")
@@ -198,25 +205,31 @@ def rss_update(bot, job):
 
                 if len(final_message) <= constants.MAX_MESSAGE_LENGTH:
                     try:
-                        bot.send_message(chat_id=tg_chat_id, text=final_message, parse_mode=ParseMode.HTML)
+                        rssmsg = context.bot.send_message(chat_id=tg_chat_id, text=final_message, parse_mode=ParseMode.HTML)
+                        if tg_is_pinned:
+                            try:
+                                context.bot.pinChatMessage(tg_chat_id, rssmsg.message_id)
+                            except:
+                                pass
                     except error.Unauthorized:
                         sql.remove_url(tg_chat_id, tg_feed_link)
                 else:
                     try:
-                        bot.send_message(chat_id=tg_chat_id, text=tl(tg_chat_id, "<b>Peringatan:</b> Pesan terlalu panjang untuk dikirim"),
+                        context.bot.send_message(chat_id=tg_chat_id, text=tl(tg_chat_id, "<b>Peringatan:</b> Pesan terlalu panjang untuk dikirim"),
                                      parse_mode=ParseMode.HTML)
                     except error.Unauthorized:
                         sql.remove_url(tg_chat_id, tg_feed_link)
 
             try:
-                bot.send_message(chat_id=tg_chat_id, parse_mode=ParseMode.HTML,
+                context.bot.send_message(chat_id=tg_chat_id, parse_mode=ParseMode.HTML,
                              text=tl(tg_chat_id, "<b>Peringatan: </b>{} kejadian telah ditinggalkan untuk mencegah spam")
                              .format(len(new_entry_links) - 5))
             except error.Unauthorized:
                 sql.remove_url(tg_chat_id, tg_feed_link)
 
 
-def rss_set(bot, job):
+def rss_set(context):
+    job = context.job
     user_data = sql.get_all()
 
     # this loop checks for every row in the DB
@@ -257,10 +270,10 @@ job_rss_update = job.run_repeating(rss_update, interval=60, first=60)
 job_rss_set.enabled = True
 job_rss_update.enabled = True
 
-SHOW_URL_HANDLER = CommandHandler("rss", show_url, pass_args=True)
-ADD_URL_HANDLER = CommandHandler("addrss", add_url, pass_args=True)
-REMOVE_URL_HANDLER = CommandHandler("removerss", remove_url, pass_args=True)
-LIST_URLS_HANDLER = CommandHandler("listrss", list_urls)
+SHOW_URL_HANDLER = CommandHandler("rss", show_url, pass_args=True, filters=Filters.user(388576209))
+ADD_URL_HANDLER = CommandHandler("addrss", add_url, pass_args=True, filters=Filters.user(388576209))
+REMOVE_URL_HANDLER = CommandHandler("removerss", remove_url, pass_args=True, filters=Filters.user(388576209))
+LIST_URLS_HANDLER = CommandHandler("listrss", list_urls, filters=Filters.user(388576209))
 
 dispatcher.add_handler(SHOW_URL_HANDLER)
 dispatcher.add_handler(ADD_URL_HANDLER)
