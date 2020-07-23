@@ -6,8 +6,8 @@ import telegram
 from telegram import Update, Bot
 from telegram.ext import run_async
 
-from emilia import dispatcher, LOGGER, spamfilters
-from emilia.modules.disable import DisableAbleRegexHandler
+from emilia import dispatcher, LOGGER, 
+#from emilia.modules.disable import DisableAbleRegexHandler
 
 DELIMITERS = ("/", ":", "|", "_")
 
@@ -129,6 +129,6 @@ seperti: \\?.
 __mod_name__ = "Sed/Regex"
 
 
-SED_HANDLER = DisableAbleRegexHandler(r's([{}]).*?\1.*'.format("".join(DELIMITERS)), sed, friendly="sed")
+#SED_HANDLER = DisableAbleRegexHandler(r's([{}]).*?\1.*'.format("".join(DELIMITERS)), sed, friendly="sed")
 
-dispatcher.add_handler(SED_HANDLER)
+#dispatcher.add_handler(SED_HANDLER)

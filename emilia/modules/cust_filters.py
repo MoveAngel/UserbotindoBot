@@ -5,17 +5,17 @@ import telegram
 from telegram import ParseMode, InlineKeyboardMarkup, Message, Chat
 from telegram import Update, Bot
 from telegram.error import BadRequest
-from telegram.ext import CommandHandler, MessageHandler, DispatcherHandlerStop, run_async
-from telegram.utils.helpers import escape_markdown
+from telegram.ext import CommandHandler, MessageHandler, DispatcherHandlerStop, run_async, Filters
+from telegram.utils.helpers import escape_markdown, mention_markdown
 
-from emilia import dispatcher, LOGGER, spamfilters, OWNER_ID
+from emilia import dispatcher, LOGGER, spamcheck, OWNER_ID
 from emilia.modules.disable import DisableAbleCommandHandler
 from emilia.modules.helper_funcs.chat_status import user_admin
 from emilia.modules.helper_funcs.extraction import extract_text
 from emilia.modules.helper_funcs.filters import CustomFilters
-from emilia.modules.helper_funcs.misc import build_keyboard
+from emilia.modules.helper_funcs.misc import build_keyboard_parser
 from emilia.modules.helper_funcs.msg_types import get_filter_type
-from emilia.modules.helper_funcs.string_handling import split_quotes, button_markdown_parser
+from emilia.modules.helper_funcs.string_handling import split_quotes, button_markdown_parser, escape_invalid_curly_brackets
 from emilia.modules.sql import cust_filters_sql as sql
 
 from emilia.modules.connection import connected
@@ -40,15 +40,12 @@ ENUM_FUNC_MAP = {
 
 
 @run_async
-def list_handlers(bot: Bot, update: Update):
+@spamcheck
+def list_handlers(update, context):
 	chat = update.effective_chat  # type: Optional[Chat]
 	user = update.effective_user  # type: Optional[User]
-
-	spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-	if spam == True:
-		return
 	
-	conn = connected(bot, update, chat, user.id, need_admin=False)
+	conn = connected(context.bot, update, chat, user.id, need_admin=False)
 	if not conn == False:
 		chat_id = conn
 		chat_name = dispatcher.bot.getChat(conn).title
@@ -81,18 +78,15 @@ def list_handlers(bot: Bot, update: Update):
 
 
 # NOT ASYNC BECAUSE DISPATCHER HANDLER RAISED
+@spamcheck
 @user_admin
-def filters(bot: Bot, update: Update):
+def filters(update, context):
 	chat = update.effective_chat  # type: Optional[Chat]
 	user = update.effective_user  # type: Optional[User]
 	msg = update.effective_message  # type: Optional[Message]
 	args = msg.text.split(None, 1)  # use python's maxsplit to separate Cmd, keyword, and reply_text
 
-	spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-	if spam == True:
-		return
-
-	conn = connected(bot, update, chat, user.id)
+	conn = connected(context.bot, update, chat, user.id)
 	if not conn == False:
 		chat_id = conn
 		chat_name = dispatcher.bot.getChat(conn).title
@@ -178,17 +172,14 @@ def filters(bot: Bot, update: Update):
 
 
 # NOT ASYNC BECAUSE DISPATCHER HANDLER RAISED
+@spamcheck
 @user_admin
-def stop_filter(bot: Bot, update: Update):
+def stop_filter(update, context):
 	chat = update.effective_chat  # type: Optional[Chat]
 	user = update.effective_user  # type: Optional[User]
 	args = update.effective_message.text.split(None, 1)
 
-	spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-	if spam == True:
-		return
-
-	conn = connected(bot, update, chat, user.id)
+	conn = connected(context.bot, update, chat, user.id)
 	if not conn == False:
 		chat_id = conn
 		chat_name = dispatcher.bot.getChat(conn).title
@@ -219,7 +210,7 @@ def stop_filter(bot: Bot, update: Update):
 
 
 @run_async
-def reply_filter(bot: Bot, update: Update):
+def reply_filter(update, context):
 	chat = update.effective_chat  # type: Optional[Chat]
 	message = update.effective_message  # type: Optional[Message]
 
@@ -234,18 +225,31 @@ def reply_filter(bot: Bot, update: Update):
 			filt = sql.get_filter(chat.id, keyword)
 			if filt.reply == "there is should be a new reply":
 				buttons = sql.get_buttons(chat.id, filt.keyword)
-				keyb = build_keyboard(buttons)
+				keyb = build_keyboard_parser(context.bot, chat.id, buttons)
 				keyboard = InlineKeyboardMarkup(keyb)
+
+				VALID_WELCOME_FORMATTERS = ['first', 'last', 'fullname', 'username', 'id', 'chatname', 'mention']
+				if filt.reply_text:
+					valid_format = escape_invalid_curly_brackets(filt.reply_text, VALID_WELCOME_FORMATTERS)
+					if valid_format:
+						filtext = valid_format.format(first=escape_markdown(message.from_user.first_name),
+													  last=escape_markdown(message.from_user.last_name or message.from_user.first_name),
+													  fullname=escape_markdown(" ".join([message.from_user.first_name, message.from_user.last_name] if message.from_user.last_name else [message.from_user.first_name])), username="@" + message.from_user.username if message.from_user.username else mention_markdown(message.from_user.id, message.from_user.first_name), mention=mention_markdown(message.from_user.id, message.from_user.first_name), chatname=escape_markdown(message.chat.title if message.chat.type != "private" else message.from_user.first_name), id=message.from_user.id)
+					else:
+						filtext = ""
+				else:
+					filtext = ""
+
 				if filt.file_type in (sql.Types.BUTTON_TEXT, sql.Types.TEXT):
 					try:
-						bot.send_message(chat.id, filt.reply_text, reply_to_message_id=message.message_id,
+						context.bot.send_message(chat.id, filtext, reply_to_message_id=message.message_id,
 										 parse_mode="markdown", disable_web_page_preview=True,
 										 reply_markup=keyboard)
 					except BadRequest as excp:
 						error_catch = get_exception(excp, filt, chat)
 						if error_catch == "noreply":
 							try:
-								bot.send_message(chat.id, filt.reply_text, parse_mode="markdown", disable_web_page_preview=True, reply_markup=keyboard)
+								context.bot.send_message(chat.id, filtext, parse_mode="markdown", disable_web_page_preview=True, reply_markup=keyboard)
 							except BadRequest as excp:
 								LOGGER.exception("Gagal mengirim pesan: " + excp.message)
 								send_message(update.effective_message, tl(update.effective_message, get_exception(excp, filt, chat)))
@@ -257,7 +261,7 @@ def reply_filter(bot: Bot, update: Update):
 								LOGGER.exception("Gagal mengirim pesan: " + excp.message)
 								pass
 				else:
-					ENUM_FUNC_MAP[filt.file_type](chat.id, filt.file_id, caption=filt.reply_text, reply_to_message_id=message.message_id, parse_mode="markdown", disable_web_page_preview=True, reply_markup=keyboard)
+					ENUM_FUNC_MAP[filt.file_type](chat.id, filt.file_id, caption=filtext, reply_to_message_id=message.message_id, parse_mode="markdown", disable_web_page_preview=True, reply_markup=keyboard)
 				break
 			else:
 				if filt.is_sticker:
@@ -274,7 +278,7 @@ def reply_filter(bot: Bot, update: Update):
 					message.reply_video(filt.reply)
 				elif filt.has_markdown:
 					buttons = sql.get_buttons(chat.id, filt.keyword)
-					keyb = build_keyboard(buttons)
+					keyb = build_keyboard_parser(context.bot, chat.id, buttons)
 					keyboard = InlineKeyboardMarkup(keyb)
 
 					try:
@@ -292,7 +296,7 @@ def reply_filter(bot: Bot, update: Update):
 								pass
 						elif excp.message == "Reply message not found":
 							try:
-								bot.send_message(chat.id, filt.reply, parse_mode=ParseMode.MARKDOWN,
+								context.bot.send_message(chat.id, filt.reply, parse_mode=ParseMode.MARKDOWN,
 												 disable_web_page_preview=True,
 												 reply_markup=keyboard)
 							except BadRequest as excp:
@@ -355,7 +359,7 @@ __mod_name__ = "Filters"
 FILTER_HANDLER = CommandHandler("filter", filters)
 STOP_HANDLER = CommandHandler("stop", stop_filter)
 LIST_HANDLER = DisableAbleCommandHandler("filters", list_handlers, admin_ok=True)
-CUST_FILTER_HANDLER = MessageHandler(CustomFilters.has_text, reply_filter)
+CUST_FILTER_HANDLER = MessageHandler(CustomFilters.has_text & ~Filters.update.edited_message, reply_filter)
 
 dispatcher.add_handler(FILTER_HANDLER)
 dispatcher.add_handler(STOP_HANDLER)

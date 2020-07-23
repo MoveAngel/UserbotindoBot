@@ -7,7 +7,7 @@ from telegram.ext import CommandHandler, run_async, Filters
 from telegram.utils.helpers import escape_markdown
 
 import emilia.modules.sql.rules_sql as sql
-from emilia import dispatcher, spamfilters, OWNER_ID
+from emilia import dispatcher, spamcheck, OWNER_ID
 from emilia.modules.helper_funcs.chat_status import user_admin
 from emilia.modules.helper_funcs.misc import build_keyboard_alternate
 from emilia.modules.helper_funcs.string_handling import markdown_parser, button_markdown_parser
@@ -18,10 +18,8 @@ from emilia.modules.helper_funcs.alternate import send_message
 
 
 @run_async
-def get_rules(bot: Bot, update: Update):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+@spamcheck
+def get_rules(update, context):
     chat_id = update.effective_chat.id
     send_rules(update, chat_id)
 
@@ -86,11 +84,9 @@ def send_rules(update, chat_id, from_pm=False):
 
 
 @run_async
+@spamcheck
 @user_admin
-def set_rules(bot: Bot, update: Update):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+def set_rules(update, context):
     chat = update.effective_chat
     chat_id = update.effective_chat.id
     user = update.effective_user
@@ -98,7 +94,7 @@ def set_rules(bot: Bot, update: Update):
     raw_text = msg.text
     args = raw_text.split(None, 1)  # use python's maxsplit to separate cmd and args
 
-    conn = connected(bot, update, chat, user.id, need_admin=True)
+    conn = connected(context.bot, update, chat, user.id, need_admin=True)
     if conn:
         chat = dispatcher.bot.getChat(conn)
         chat_id = conn
@@ -135,16 +131,14 @@ def set_rules(bot: Bot, update: Update):
 
 
 @run_async
+@spamcheck
 @user_admin
-def clear_rules(bot: Bot, update: Update):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+def clear_rules(update, context):
     chat = update.effective_chat
     chat_id = update.effective_chat.id
     user = update.effective_user
 
-    conn = connected(bot, update, chat, user.id, need_admin=True)
+    conn = connected(context.bot, update, chat, user.id, need_admin=True)
     if conn:
         chat = dispatcher.bot.getChat(conn)
         chat_id = conn
@@ -163,14 +157,13 @@ def clear_rules(bot: Bot, update: Update):
 
 
 @run_async
+@spamcheck
 @user_admin
-def private_rules(bot: Bot, update: Update, args: List[str]):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+def private_rules(update, context):
+    args = context.args
     chat = update.effective_chat  # type: Optional[Chat]
     user = update.effective_user  # type: Optional[User]
-    conn = connected(bot, update, chat, user.id)
+    conn = connected(context.bot, update, chat, user.id)
     if conn:
         chat_id = conn
         chat_name = dispatcher.bot.getChat(conn).title

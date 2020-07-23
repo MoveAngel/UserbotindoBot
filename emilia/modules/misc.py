@@ -13,7 +13,7 @@ from telegram import ParseMode
 from telegram.ext import CommandHandler, run_async, Filters
 from telegram.utils.helpers import escape_markdown, mention_html, mention_markdown
 
-from emilia import dispatcher, OWNER_ID, SUDO_USERS, SUPPORT_USERS, WHITELIST_USERS, BAN_STICKER, spamfilters, MAPS_API
+from emilia import dispatcher, OWNER_ID, SUDO_USERS, SUPPORT_USERS, WHITELIST_USERS, BAN_STICKER, spamcheck, MAPS_API
 from emilia.__main__ import STATS, USER_INFO
 from emilia.modules.disable import DisableAbleCommandHandler
 from emilia.modules.helper_funcs.extraction import extract_user
@@ -149,17 +149,14 @@ GMAPS_TIME = "https://maps.googleapis.com/maps/api/timezone/json"
 
 
 @run_async
-def runs(bot: Bot, update: Update):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+@spamcheck
+def runs(update, context):
     send_message(update.effective_message, random.choice(tl(update.effective_message, "RUN_STRINGS")))
 
 @run_async
-def slap(bot: Bot, update: Update, args: List[str]):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+@spamcheck
+def slap(update, context):
+    args = context.args
     msg = update.effective_message  # type: Optional[Message]
 
     # reply to correct message
@@ -172,8 +169,8 @@ def slap(bot: Bot, update: Update, args: List[str]):
     curr_user = "{}".format(mention_markdown(msg.from_user.id, msg.from_user.first_name))
 
     user_id = extract_user(update.effective_message, args)
-    if user_id:
-        slapped_user = bot.get_chat(user_id)
+    if user_id and user_id != "error":
+        slapped_user = context.bot.get_chat(user_id)
         user1 = curr_user
         #if slapped_user.username:
         #    user2 = "@" + escape_markdown(slapped_user.username)
@@ -182,7 +179,7 @@ def slap(bot: Bot, update: Update, args: List[str]):
 
     # if no target found, bot targets the sender
     else:
-        user1 = "{}".format(mention_markdown(bot.id, bot.first_name))
+        user1 = "{}".format(mention_markdown(context.bot.id, context.bot.first_name))
         user2 = curr_user
 
     temp = random.choice(tl(update.effective_message, "SLAP_TEMPLATES"))
@@ -196,7 +193,7 @@ def slap(bot: Bot, update: Update, args: List[str]):
 
 
 @run_async
-def get_bot_ip(bot: Bot, update: Update):
+def get_bot_ip(update, context):
     """ Sends the bot's IP address, so as to be able to ssh in if necessary.
         OWNER ONLY.
     """
@@ -205,48 +202,63 @@ def get_bot_ip(bot: Bot, update: Update):
 
 
 @run_async
-def get_id(bot: Bot, update: Update, args: List[str]):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+@spamcheck
+def get_id(update, context):
+    args = context.args
     user_id = extract_user(update.effective_message, args)
-    if user_id:
+    if user_id and user_id != "error":
         if update.effective_message.reply_to_message and update.effective_message.reply_to_message.forward_from:
             user1 = update.effective_message.reply_to_message.from_user
             user2 = update.effective_message.reply_to_message.forward_from
-            send_message(update.effective_message, 
-                tl(update.effective_message, "Pengirim asli, {}, memiliki ID `{}`.\nSi penerus pesan, {}, memiliki ID `{}`.").format(
+            text = tl(update.effective_message, "Pengirim asli, {}, memiliki ID `{}`.\nSi penerus pesan, {}, memiliki ID `{}`.").format(
                     escape_markdown(user2.first_name),
                     user2.id,
                     escape_markdown(user1.first_name),
-                    user1.id),
+                    user1.id)
+            if update.effective_message.chat.type != "private":
+                text += "\n" + tl(update.effective_message, "Id grup ini adalah `{}`.").format(update.effective_message.chat.id)
+            send_message(update.effective_message, 
+                text,
                 parse_mode=ParseMode.MARKDOWN)
         else:
-            user = bot.get_chat(user_id)
-            send_message(update.effective_message, tl(update.effective_message, "Id {} adalah `{}`.").format(escape_markdown(user.first_name), user.id),
+            user = context.bot.get_chat(user_id)
+            text = tl(update.effective_message, "Id {} adalah `{}`.").format(escape_markdown(user.first_name), user.id)
+            if update.effective_message.chat.type != "private":
+                text += "\n" + tl(update.effective_message, "Id grup ini adalah `{}`.").format(update.effective_message.chat.id)
+            send_message(update.effective_message, text,
                                                 parse_mode=ParseMode.MARKDOWN)
+    elif user_id == "error":
+        try:
+            user = context.bot.get_chat(args[0])
+        except BadRequest:
+            send_message(update.effective_message, "Error: Unknown User/Chat!")
+            return
+        text = tl(update.effective_message, "Id Anda adalah `{}`.").format(update.effective_message.from_user.id)
+        text += "\n" + tl(update.effective_message, "Id grup tersebut adalah `{}`.").format(user.id)
+        if update.effective_message.chat.type != "private":
+            text += "\n" + tl(update.effective_message, "Id grup ini adalah `{}`.").format(update.effective_message.chat.id)
+        send_message(update.effective_message, text, parse_mode=ParseMode.MARKDOWN)
     else:
         chat = update.effective_chat  # type: Optional[Chat]
         if chat.type == "private":
-            send_message(update.effective_message, tl(update.effective_message, "Id Anda adalah `{}`.").format(chat.id),
+            send_message(update.effective_message, tl(update.effective_message, "Id Anda adalah `{}`.").format(update.effective_message.from_user.id),
                                                 parse_mode=ParseMode.MARKDOWN)
 
         else:
-            send_message(update.effective_message, tl(update.effective_message, "Id grup ini adalah `{}`.").format(chat.id),
+            send_message(update.effective_message, tl(update.effective_message, "Id Anda adalah `{}`.").format(update.effective_message.from_user.id) + "\n" + tl(update.effective_message, "Id grup ini adalah `{}`.").format(chat.id),
                                                 parse_mode=ParseMode.MARKDOWN)
 
 
 @run_async
-def info(bot: Bot, update: Update, args: List[str]):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+@spamcheck
+def info(update, context):
+    args = context.args
     msg = update.effective_message  # type: Optional[Message]
     chat = update.effective_chat  # type: Optional[Chat]
     user_id = extract_user(update.effective_message, args)
 
-    if user_id:
-        user = bot.get_chat(user_id)
+    if user_id and user_id != "error":
+        user = context.bot.get_chat(user_id)
 
     elif not msg.reply_to_message and not args:
         user = msg.from_user
@@ -306,14 +318,13 @@ def info(bot: Bot, update: Update, args: List[str]):
 
 
 @run_async
-def get_time(bot: Bot, update: Update, args: List[str]):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+@spamcheck
+def get_time(update, context):
+    args = context.args
     location = " ".join(args)
-    if location.lower() == bot.first_name.lower():
+    if location.lower() == context.bot.first_name.lower():
         send_message(update.effective_message, tl(update.effective_message, "Selalu ada waktu banned untukku!"))
-        bot.send_sticker(update.effective_chat.id, BAN_STICKER)
+        context.bot.send_sticker(update.effective_chat.id, BAN_STICKER)
         return
 
     res = requests.get(GMAPS_LOC, params=dict(address=location, key=MAPS_API))
@@ -352,15 +363,14 @@ def get_time(bot: Bot, update: Update, args: List[str]):
 
 
 @run_async
-def get_time_alt(bot: Bot, update: Update, args: List[str]):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+@spamcheck
+def get_time_alt(update, context):
+    args = context.args
     if args:
         location = " ".join(args)
-        if location.lower() == bot.first_name.lower():
+        if location.lower() == context.bot.first_name.lower():
             send_message(update.effective_message, "Selalu ada waktu banned untukku!")
-            bot.send_sticker(update.effective_chat.id, BAN_STICKER)
+            context.bot.send_sticker(update.effective_chat.id, BAN_STICKER)
             return
 
         res = requests.get('https://dev.virtualearth.net/REST/v1/timezone/?query={}&key={}'.format(location, MAPS_API))
@@ -383,7 +393,7 @@ def get_time_alt(bot: Bot, update: Update, args: List[str]):
 
 
 @run_async
-def echo(bot: Bot, update: Update):
+def echo(update, context):
     message = update.effective_message
     chat_id = update.effective_chat.id
     try:
@@ -396,19 +406,17 @@ def echo(bot: Bot, update: Update):
     if str(data_type) in ('Types.BUTTON_TEXT', 'Types.TEXT'):
         try:
             if message.reply_to_message:
-                bot.send_message(chat_id, text, parse_mode="markdown", reply_to_message_id=message.reply_to_message.message_id, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(tombol))
+                context.bot.send_message(chat_id, text, parse_mode="markdown", reply_to_message_id=message.reply_to_message.message_id, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(tombol))
             else:
-                bot.send_message(chat_id, text, quote=False, disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(tombol))
+                context.bot.send_message(chat_id, text, quote=False, disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(tombol))
         except BadRequest:
-            bot.send_message(chat_id, tl(update.effective_message, "Teks markdown salah!\nJika anda tidak tahu apa itu markdown, silahkan ketik `/markdownhelp` pada PM."), parse_mode="markdown")
+            context.bot.send_message(chat_id, tl(update.effective_message, "Teks markdown salah!\nJika anda tidak tahu apa itu markdown, silahkan ketik `/markdownhelp` pada PM."), parse_mode="markdown")
             return
 
 
 @run_async
-def markdown_help(bot: Bot, update: Update):
-    spam = spamfilters(update.effective_message.text, update.effective_message.from_user.id, update.effective_chat.id, update.effective_message)
-    if spam == True:
-        return
+@spamcheck
+def markdown_help(update, context):
     send_message(update.effective_message, tl(update.effective_message, "MARKDOWN_HELP").format(dispatcher.bot.first_name), parse_mode=ParseMode.HTML)
     send_message(update.effective_message, tl(update.effective_message, "Coba teruskan pesan berikut kepada saya, dan Anda akan lihat!"))
     send_message(update.effective_message, tl(update.effective_message, "/save test Ini adalah tes markdown. _miring_, *tebal*, `kode`, "
@@ -417,7 +425,7 @@ def markdown_help(bot: Bot, update: Update):
 
 
 @run_async
-def stats(bot: Bot, update: Update):
+def stats(update, context):
     send_message(update.effective_message, tl(update.effective_message, "Statistik saat ini:\n") + "\n".join([mod.__stats__() for mod in STATS]))
 
 
