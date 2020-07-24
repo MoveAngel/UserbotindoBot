@@ -6,7 +6,7 @@ import telegram
 from telegram import Update, Bot
 from telegram.ext import run_async
 
-from emilia import dispatcher, LOGGER, 
+from emilia import dispatcher, LOGGER
 #from emilia.modules.disable import DisableAbleRegexHandler
 
 DELIMITERS = ("/", ":", "|", "_")
