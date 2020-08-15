@@ -1,4 +1,4 @@
-from lynda import LOAD, NO_LOAD, LOGGER
+from userindobot import LOAD, NO_LOAD, LOGGER
 
 
 def __list_all_modules():

@@ -1,7 +1,7 @@
 from asyncio import sleep
 from userindobot.modules.helper_funcs.telethn.chatstatus import user_is_admin
 from userindobot.modules.helper_funcs.telethn.chatstatus import can_delete_messages
-from lynda.lyn import lyndabot
+from userindobot.lyn import lyndabot
 
 
 @lyndabot(pattern="^/purge")

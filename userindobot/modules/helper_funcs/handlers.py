@@ -4,10 +4,7 @@ from telegram.ext import CommandHandler, RegexHandler, MessageHandler
 import userindobot.modules.sql.blacklistusers_sql as sql
 from userindobot import ALLOW_EXCL
 
-if ALLOW_EXCL:
-    CMD_STARTERS = ('/', '!')
-else:
-    CMD_STARTERS = ('/',)
+CMD_STARTERS = ('/', '!') if ALLOW_EXCL else ('/', )
 
 
 class CustomCommandHandler(CommandHandler):
