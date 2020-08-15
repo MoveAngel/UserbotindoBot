@@ -1,1 +1,1 @@
-worker: python3 -m lynda
+worker: python3 -m userindobot

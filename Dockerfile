@@ -59,9 +59,9 @@ RUN apt update && apt upgrade -y && \
 # Pypi package Repo upgrade
 RUN pip3 install --upgrade pip setuptools
 
-# Copy Python Requirements to /root/LyndaRobot
-RUN git clone https://github.com/pokurt/LyndaRobot.git /root/LyndaRobot
-WORKDIR /root/LyndaRobot
+# Copy Python Requirements to /root/UserbotindoBot
+RUN git clone -b Lynda https://github.com/MoveAngel/UserbotindoBot.git /root/UserbotindoBot
+WORKDIR /root/UserbotindoBot
 
 ENV PATH="/home/lynda/bin:$PATH"
 
@@ -69,4 +69,4 @@ ENV PATH="/home/lynda/bin:$PATH"
 RUN sudo pip3 install -U -r requirements.txt
 
 # Starting Worker
-CMD ["python3","-m","lynda"]
+CMD ["python3","-m","userindobot"]
