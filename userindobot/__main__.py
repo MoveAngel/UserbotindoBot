@@ -18,22 +18,23 @@ from userindobot.modules.helper_funcs.misc import paginate_modules
 
 PM_START_TEXT = """
 Hi {}, my name is {}!
-// I am an Anime themed group management bot with a lot of Special Features.
+// I am an group management bot with a lot of Special Features.
 You can find the list of available commands with /help.
 ==========================
--> [Lynda's Repo](https://waa.ai/Lynda)
--> Report [Lynda Support](https://t.me/LyndaEagleSupport) if I go offline
+-> [UserbotindoBot's Repo](https://github.com/MoveAngel/UserbotindoBot)
+-> Report [UserBot Indo Support](https://t.me/userbotindo) if I go offline
 ==========================
-`Maintained by` @YorktownEagleUnion
+`Maintained by` @MoveAngel & @tomyprs25
 
 """
 
 HELP_STRINGS = """
 Hey there! My name is *{}*.
-I'm a part of UserbotindoBot.
+I'm a part of UserindoBot.
 Have a look at the following for an idea of some of \
 the things I can help you with.
-I'm managed by [Poki](https://t.me/pokurt)
+I'm managed by [MoveAngel](https://t.me/MoveAngel)
+Original fork from [LyndaRobot](https://waa.ai/Lynda)
 Chatbot module from [TheRealPhoenixBot](https://github.com/rsktg/TheRealPhoenixBot.git)
 Disaster module from [SaitamaRobot](https://github.com/AnimeKaizoku/SaitamaRobot)
 *Main* commands available:
@@ -49,10 +50,10 @@ Disaster module from [SaitamaRobot](https://github.com/AnimeKaizoku/SaitamaRobot
 And the following:
 """.format(dispatcher.bot.first_name, "" if not ALLOW_EXCL else "\nAll commands can either be used with / or !.\n")
 
-userindobot = "https://telegra.ph/file/35005c01182645232f2d3.jpg"
+userindobot = "https://i.ibb.co/zJdLsyg/Userindobot.png"
 
 DONATE_STRING = """Heya, glad to hear you want to donate!
-Lynda is hosted on one of Digital Ocean Servers. \
+UserindoBot is hosted on one of Free Servers. \
 You can donate to the original writer of the Base code, Paul
 There are two ways of supporting him; [PayPal](paypal.me/PaulSonOfLars), or [Monzo](monzo.me/paulnionvestergaardlarsen)."""
 
@@ -142,9 +143,9 @@ def start(bot: Bot, update: Update, args: List[str]):
         else:
             first_name = update.effective_user.first_name
             buttons = InlineKeyboardMarkup(
-                [[InlineKeyboardButton(text="👥 Add Lynda to your group", url="https://t.me/LyndaRobot?startgroup=new")],
-                 [InlineKeyboardButton(text="🙋 Support Group", url="https://t.me/LyndaEagleSupport"), InlineKeyboardButton(text="🚫 Global Logs", url="https://t.me/LyndaGLogs")],
-                 [InlineKeyboardButton(text="❔ Help", callback_data="help_back"), InlineKeyboardButton(text="🔔 Update Channel", url="https://t.me/LyndaUpdateLogs")]])
+                [[InlineKeyboardButton(text="👥 Add UserindoBot to your group", url="https://t.me/userbotindobot?startgroup=new")],
+                 [InlineKeyboardButton(text="🙋 Support Group", url="https://t.me/userbotindo"), InlineKeyboardButton(text="🚫 Global Logs", url="https://t.me/UserIndoBotLog")],
+                 [InlineKeyboardButton(text="❔ Help", callback_data="help_back"), InlineKeyboardButton(text="🔔 Update Channel", url="https://t.me/userbotindocloud")]])
             message.reply_photo(
                 userindobot,
                 PM_START_TEXT.format(

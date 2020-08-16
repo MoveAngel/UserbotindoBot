@@ -7,7 +7,7 @@
          "plan": "heroku-postgresql"
       }
    ],
-   "description": "An Anime themed Telegram group management bot.",
+   "description": "An Telegram group management bot fork from LyndaRobot.",
    "env": {
       "ALLOW_EXCL": {
          "description": "Set this to True if you want ! to be a command prefix along with /",
@@ -38,16 +38,16 @@
       },      
       "OWNER_ID": {
          "description": "Your user ID as an integer.",
-         "value": "792109647"
+         "value": "680900214"
       },
       "OWNER_USERNAME": {
          "description": "Your username",
-         "value": "AnimeKaizoku"
+         "value": "MoveAngel"
       },
       "DEV_USERS": {
          "description": "ID of users who are Dev (can use /py etc.)",
          "required": false,
-         "value": "660565862 792109647"
+         "value": "680900214 1227561036"
       },
       "GBAN_LOGS": {
          "description": "Gban log channel, include the hyphen too: ex: -123456",
@@ -55,11 +55,18 @@
       },
       "CASH_API_KEY": {
          "description": "Required for currency converter",
+         "required": false,
          "value": "-xyz"
       },
       "TIME_API_KEY": {
          "description": "Required for timezone information",
+         "required": false,
          "value": "-xyz"
+      },
+      "AI_API_KEY": {
+         "description": "Coffeehouse chatbot api key, get one from https://coffeehouse.intellivoid.info/",
+         "required": false,
+         "value": ""
       },
       "PORT": {
          "description": "Port to use for your webhooks.",
@@ -73,15 +80,10 @@
       "SUDO_USERS": {
          "description": "A space separated list of user IDs who you want to assign as sudo users.",
          "required": false,
-         "value": "459034222 189005567 660565862 346981140 367222759"
+         "value": ""
       },
       "SUPPORT_USERS": {
          "description": "A space separated list of user IDs who you wanna assign as support users(gban perms only).",
-         "required": false,
-         "value": "615304572"
-      },
-      "SARDEGNA_USERS": {
-         "description": "A space separated list of user IDs who you wanna assign as Sardegna users.",
          "required": false,
          "value": ""
       },
@@ -104,6 +106,11 @@
          "description": "A space separated list of user IDs who you want to assign as whitelisted - can't be banned with your bot.",
          "required": false,
          "value": ""
+      },
+      "DEEPFRY_TOKEN": {
+         "description": "Get token from https://azure.microsoft.com/services/cognitive-services/face/",
+         "required": false,
+         "value": ""
       }
    },
    "keywords": [
@@ -111,8 +118,8 @@
       "weeb",
       "group",
       "manager",
-      "Kigyō"
+      "UserindoBot"
    ],
-   "name": "Kigyō bot",
-   "repository": "https://github.com/AnimeKaizoku/Kigyōbot"
+   "name": "UserIndoBot",
+   "repository": "https://github.com/MoveAngel/UserbotindoBot"
 }
