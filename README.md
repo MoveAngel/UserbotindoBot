@@ -11,6 +11,10 @@ Can be found on telegram as [Userindobot](https://t.me/userbotindobot).
 
 The Support group can be reached out to at [Userbot Indo Support](https://t.me/userbotindo), where you can ask for help setting up your bot, discover/request new features, report bugs, and stay in the loop whenever a new update is available. 
 
+## Deploy to Heroku
+
+<p align="left"><a href="https://heroku.com/deploy?template=https://github.com/MoveAngel/UserbotindoBot/tree/Lynda"> <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy to Heroku" /></a></p>
+
 ## Credits
 The bot is based of on the original work done by [PaulSonOfLars](https://github.com/PaulSonOfLars)
 This repo was just reamped to suit an Anime-centric community. All original credits go to Paul and his dedication, Without his efforts, this fork would not have been possible!
