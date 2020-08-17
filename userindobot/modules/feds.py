@@ -81,7 +81,7 @@ def new_fed(bot: Bot, update: Update):
         x = sql.new_fed(user.id, fed_name, fed_id)
         if not x:
             message.reply_text(
-                "Can't federate! Please contact @userindobotEagleSupport if the problem persist.")
+                "Can't federate! Please contact @userindobot if the problem persist.")
             return
 
         message.reply_text(
@@ -205,7 +205,7 @@ def join_fed(bot: Bot, update: Update, args: List[str]):
         x = sql.chat_join_fed(args[0], chat.title, chat.id)
         if not x:
             message.reply_text(
-                "Failed to join federation! Please contact @userindobotEagleSupport should this problem persist!")
+                "Failed to join federation! Please contact @userindobot should this problem persist!")
             return
 
         get_fedlog = sql.get_fed_log(args[0])
